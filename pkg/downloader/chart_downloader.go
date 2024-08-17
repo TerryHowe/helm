@@ -158,11 +158,7 @@ func (c *ChartDownloader) getOciURI(ref, version string, u *url.URL) (*url.URL, 
 		}
 	}
 
-	if registryReference.Digest == "" {
-		if version == "" {
-			return u, errors.Errorf("a digest or version must be specified for an OCI chart")
-		}
-	} else {
+	if registryReference.Digest != "" {
 		if registryReference.Tag == "" {
 			// Install by digest only
 			return u, nil
