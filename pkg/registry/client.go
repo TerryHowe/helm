@@ -34,8 +34,8 @@ import (
 	"oras.land/oras-go/pkg/content"
 	"oras.land/oras-go/pkg/oras"
 	"oras.land/oras-go/pkg/registry"
-	registryremote "oras.land/oras-go/pkg/registry/remote"
 	registryauth "oras.land/oras-go/pkg/registry/remote/auth"
+	v2remote "oras.land/oras-go/v2/registry/remote"
 
 	"helm.sh/helm/v3/internal/version"
 	"helm.sh/helm/v3/pkg/chart"
@@ -238,7 +238,7 @@ func (c *Client) Login(host string, options ...LoginOption) error {
 	if err := c.authorizer.LoginWithOpts(authorizerLoginOpts...); err != nil {
 		return err
 	}
-	fmt.Fprintln(c.out, "Login Succeeded")
+	_, _ = fmt.Fprintln(c.out, "Login Succeeded")
 	return nil
 }
 
@@ -282,7 +282,7 @@ func (c *Client) Logout(host string, opts ...LogoutOption) error {
 	if err := c.authorizer.Logout(ctx(c.out, c.debug), host); err != nil {
 		return err
 	}
-	fmt.Fprintf(c.out, "Removing login credentials for %s\n", host)
+	_, _ = fmt.Fprintf(c.out, "Removing login credentials for %s\n", host)
 	return nil
 }
 
@@ -389,7 +389,7 @@ func (c *Client) Pull(ref string, options ...PullOption) (*PullResult, error) {
 			provDescriptor = &d
 		case LegacyChartLayerMediaType:
 			chartDescriptor = &d
-			fmt.Fprintf(c.out, "Warning: chart media type %s is deprecated\n", LegacyChartLayerMediaType)
+			_, _ = fmt.Fprintf(c.out, "Warning: chart media type %s is deprecated\n", LegacyChartLayerMediaType)
 		}
 	}
 	if configDescriptor == nil {
@@ -471,12 +471,12 @@ func (c *Client) Pull(ref string, options ...PullOption) (*PullResult, error) {
 		}
 	}
 
-	fmt.Fprintf(c.out, "Pulled: %s\n", result.Ref)
-	fmt.Fprintf(c.out, "Digest: %s\n", result.Manifest.Digest)
+	_, _ = fmt.Fprintf(c.out, "Pulled: %s\n", result.Ref)
+	_, _ = fmt.Fprintf(c.out, "Digest: %s\n", result.Manifest.Digest)
 
 	if strings.Contains(result.Ref, "_") {
-		fmt.Fprintf(c.out, "%s contains an underscore.\n", result.Ref)
-		fmt.Fprint(c.out, registryUnderscoreMessage+"\n")
+		_, _ = fmt.Fprintf(c.out, "%s contains an underscore.\n", result.Ref)
+		_, _ = fmt.Fprint(c.out, registryUnderscoreMessage+"\n")
 	}
 
 	return result, nil
@@ -628,11 +628,11 @@ func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResu
 			Size:   provDescriptor.Size,
 		}
 	}
-	fmt.Fprintf(c.out, "Pushed: %s\n", result.Ref)
-	fmt.Fprintf(c.out, "Digest: %s\n", result.Manifest.Digest)
+	_, _ = fmt.Fprintf(c.out, "Pushed: %s\n", result.Ref)
+	_, _ = fmt.Fprintf(c.out, "Digest: %s\n", result.Manifest.Digest)
 	if strings.Contains(parsedRef.OrasReference.Reference, "_") {
-		fmt.Fprintf(c.out, "%s contains an underscore.\n", result.Ref)
-		fmt.Fprint(c.out, registryUnderscoreMessage+"\n")
+		_, _ = fmt.Fprintf(c.out, "%s contains an underscore.\n", result.Ref)
+		_, _ = fmt.Fprint(c.out, registryUnderscoreMessage+"\n")
 	}
 
 	return result, err
@@ -652,7 +652,7 @@ func PushOptStrictMode(strictMode bool) PushOption {
 	}
 }
 
-// PushOptCreationDate returns a function that sets the creation time
+// PushOptCreationTime returns a function that sets the creation time
 func PushOptCreationTime(creationTime string) PushOption {
 	return func(operation *pushOperation) {
 		operation.creationTime = creationTime
@@ -661,63 +661,53 @@ func PushOptCreationTime(creationTime string) PushOption {
 
 // Tags provides a sorted list all semver compliant tags for a given repository
 func (c *Client) Tags(ref string) ([]string, error) {
-	parsedReference, err := registry.ParseReference(ref)
+
+	src, err := v2remote.NewRepository(ref)
 	if err != nil {
 		return nil, err
 	}
-
-	repository := registryremote.Repository{
-		Reference: parsedReference,
-		Client:    c.registryAuthorizer,
-		PlainHTTP: c.plainHTTP,
-	}
-
-	var registryTags []string
-
-	registryTags, err = registry.Tags(ctx(c.out, c.debug), &repository)
-	if err != nil {
-		return nil, err
-	}
+	src.Client = c.registryAuthorizer
+	src.PlainHTTP = c.plainHTTP
 
 	var tagVersions []*semver.Version
-	for _, tag := range registryTags {
-		// Change underscore (_) back to plus (+) for Helm
-		// See https://github.com/helm/helm/issues/10166
-		tagVersion, err := semver.StrictNewVersion(strings.ReplaceAll(tag, "_", "+"))
-		if err == nil {
-			tagVersions = append(tagVersions, tagVersion)
+	err = src.Tags(ctx(c.out, c.debug), "", func(tags []string) error {
+		for _, tag := range tags {
+			// Change underscore (_) back to plus (+) for Helm
+			// See https://github.com/helm/helm/issues/10166
+			tagVersion, err := semver.StrictNewVersion(strings.ReplaceAll(tag, "_", "+"))
+			if err == nil {
+				tagVersions = append(tagVersions, tagVersion)
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// Sort the collection
 	sort.Sort(sort.Reverse(semver.Collection(tagVersions)))
 
 	tags := make([]string, len(tagVersions))
-
 	for iTv, tv := range tagVersions {
 		tags[iTv] = tv.String()
 	}
 
 	return tags, nil
-
 }
 
 // Resolve a reference to a descriptor.
-func (c *Client) Resolve(ref string) (*ocispec.Descriptor, error) {
-	ctx := context.Background()
-	parsedRef, err := NewReference(ref)
-	if err != nil {
-		return nil, err
-	}
-	if parsedRef.Registry == "" {
-		return nil, nil
-	}
-
-	remotesResolver, err := c.resolver(parsedRef.OrasReference)
+func (c *Client) Resolve(ref Reference) (*ocispec.Descriptor, error) {
+	path := ref.Registry + "/" + ref.Repository
+	src, err := v2remote.NewRepository(path)
 	if err != nil {
 		return nil, err
 	}
 
-	_, desc, err := remotesResolver.Resolve(ctx, ref)
+	desc, err := src.Resolve(ctx(c.out, c.debug), ref.Tag)
+	if err != nil {
+		return nil, err
+	}
+
 	return &desc, err
 }

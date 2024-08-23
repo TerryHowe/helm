@@ -165,8 +165,7 @@ func (c *ChartDownloader) getOciURI(ref, version string, u *url.URL) (*url.URL, 
 		}
 
 		// Validate the tag if it was specified
-		path := registryReference.Registry + "/" + registryReference.Repository + ":" + registryReference.Tag
-		desc, err := c.RegistryClient.Resolve(path)
+		desc, err := c.RegistryClient.Resolve(registryReference)
 		if err != nil {
 			// The resource does not have to be tagged when digest is specified
 			return u, nil
