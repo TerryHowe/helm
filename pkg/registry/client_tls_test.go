@@ -44,12 +44,12 @@ func (suite *TLSRegistryClientTestSuite) Test_0_Login() {
 	err := suite.RegistryClient.Login(suite.DockerRegistryHost,
 		LoginOptBasicAuth("badverybad", "ohsobad"),
 		LoginOptTLSClientConfig(tlsCert, tlsKey, tlsCA))
-	suite.NotNil(err, "error logging into registry with bad credentials")
+	suite.NotNil(err, "error logging into registry with bad credentialFunc")
 
 	err = suite.RegistryClient.Login(suite.DockerRegistryHost,
 		LoginOptBasicAuth(testUsername, testPassword),
 		LoginOptTLSClientConfig(tlsCert, tlsKey, tlsCA))
-	suite.Nil(err, "no error logging into registry with good credentials")
+	suite.Nil(err, "no error logging into registry with good credentialFunc")
 }
 
 func (suite *TLSRegistryClientTestSuite) Test_1_Push() {
