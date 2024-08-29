@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -55,6 +56,11 @@ an underscore (_) in chart version tags when pushing to a registry and back to
 a plus (+) when pulling from a registry.`
 	dockerConfigDirEnv = "DOCKER_CONFIG"
 )
+
+// ctx retrieves a fresh context.
+func ctx(out io.Writer, debug bool) context.Context {
+	return context.Background()
+}
 
 type (
 	// Client works with OCI-compliant registries
@@ -558,6 +564,7 @@ type (
 func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResult, error) {
 	parsedRef, err := NewReference(ref)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 
@@ -569,10 +576,12 @@ func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResu
 	}
 	meta, err := extractChartMeta(data)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 	if operation.strictMode {
 		if !strings.HasSuffix(ref, fmt.Sprintf("/%s:%s", meta.Name, meta.Version)) {
+			fmt.Println(runtime.Caller(0))
 			return nil, errors.New(
 				"strict mode enabled, ref basename and tag must match the chart name and version")
 		}
@@ -580,15 +589,18 @@ func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResu
 	memoryStore := v2memory.New()
 	chartDescriptor, err := v2.PushBytes(ctx(c.out, c.debug), memoryStore, ChartLayerMediaType, data)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 
 	configData, err := json.Marshal(meta)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 	configDescriptor, err := v2.PushBytes(ctx(c.out, c.debug), memoryStore, ConfigMediaType, configData)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 
@@ -597,6 +609,7 @@ func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResu
 	if operation.provData != nil {
 		provDescriptor, err := v2.PushBytes(ctx(c.out, c.debug), memoryStore, ProvLayerMediaType, operation.provData)
 		if err != nil {
+			fmt.Println(runtime.Caller(0))
 			return nil, err
 		}
 
@@ -611,24 +624,53 @@ func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResu
 	}
 	manifest, err := v2.PackManifest(ctx(c.out, c.debug), memoryStore, v2.PackManifestVersion1_0, ocispec.MediaTypeImageManifest, packManifestOptions)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
+		return nil, err
+	}
+	if err = memoryStore.Tag(ctx(c.out, c.debug), manifest, parsedRef.Tag); err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 
+	thing, err := memoryStore.Exists(ctx(c.out, c.debug), manifest)
+	if err != nil {
+		fmt.Println(runtime.Caller(0))
+		return nil, err
+	}
+	fmt.Println(thing)
+	fmt.Println(manifest.URLs)
+	fmt.Println(manifest.Digest)
+	fmt.Println(manifest.ArtifactType)
+	fmt.Println(manifest.Size)
+
+	desc, err := memoryStore.Resolve(ctx(c.out, c.debug), manifest.Digest.String())
+	if err != nil {
+		fmt.Println(runtime.Caller(0))
+		return nil, err
+	}
+	fmt.Println(desc)
+
 	dst, err := v2remote.NewRepository(parsedRef.OrasReference.String())
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 	dst.Client = c.httpClient
 	dst.PlainHTTP = c.plainHTTP
-	//desc, err := dst.Resolve(ctx(c.out, c.debug), parsedRef.Tag)
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	// Copy
 	copyOptions := v2.DefaultExtendedCopyOptions
-	_, err = v2.ExtendedCopy(ctx(c.out, c.debug), memoryStore, "", dst, parsedRef.OrasReference.String(), copyOptions)
+	fmt.Printf("parsed %s\n", parsedRef.OrasReference.String())
+	fmt.Printf("parsed %s\n", parsedRef.Registry)
+	fmt.Printf("parsed %s\n", parsedRef.Repository)
+	fmt.Printf("parsed %s\n", parsedRef.Tag)
+	fmt.Printf("parsed %s\n", parsedRef.Digest)
+	fmt.Printf("parsed %s\n", parsedRef.OrasReference.Registry)
+	fmt.Printf("parsed %s\n", parsedRef.OrasReference.Repository)
+	fmt.Printf("parsed %s\n", parsedRef.OrasReference.Reference)
+	_, err = ExtendedCopy(ctx(c.out, c.debug), memoryStore, manifest.Digest.String(), dst, parsedRef.OrasReference.String(), copyOptions)
 	if err != nil {
+		fmt.Println(runtime.Caller(0))
 		return nil, err
 	}
 
@@ -664,6 +706,34 @@ func (c *Client) Push(data []byte, ref string, options ...PushOption) (*PushResu
 	}
 
 	return result, err
+}
+
+func ExtendedCopy(ctx context.Context, src v2.ReadOnlyGraphTarget, srcRef string, dst v2.Target, dstRef string, opts v2.ExtendedCopyOptions) (ocispec.Descriptor, error) {
+	if src == nil {
+		return ocispec.Descriptor{}, errors.New("nil source graph target")
+	}
+	if dst == nil {
+		return ocispec.Descriptor{}, errors.New("nil destination target")
+	}
+	if dstRef == "" {
+		dstRef = srcRef
+		fmt.Printf("reset dstRef=%s\n", dstRef)
+	}
+
+	node, err := src.Resolve(ctx, srcRef)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("FUCK %v %s %v", src, srcRef, err)
+	}
+
+	if err := v2.ExtendedCopyGraph(ctx, src, dst, node, opts.ExtendedCopyGraphOptions); err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("fffffFUCK %v", err)
+	}
+
+	if err := dst.Tag(ctx, node, dstRef); err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	return node, nil
 }
 
 // PushOptProvData returns a function that sets the prov bytes setting on push
