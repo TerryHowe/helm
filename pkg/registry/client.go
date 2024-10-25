@@ -785,7 +785,7 @@ func (c *Client) Resolve(ref string) (*ocispec.Descriptor, error) {
 func (c *Client) ValidateReference(ref, version string, u *url.URL) (*url.URL, error) {
 	var tag string
 
-	registryReference, err := newReference(u.Path)
+	registryReference, err := newReference(u.Host + u.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -800,13 +800,13 @@ func (c *Client) ValidateReference(ref, version string, u *url.URL) (*url.URL, e
 	}
 
 	if registryReference.Digest != "" {
-		if registryReference.Tag == "" {
+		if version == "" {
 			// Install by digest only
 			return u, nil
 		}
 
 		// Validate the tag if it was specified
-		path := registryReference.Registry + "/" + registryReference.Repository + ":" + registryReference.Tag
+		path := registryReference.Registry + "/" + registryReference.Repository + ":" + version
 		desc, err := c.Resolve(path)
 		if err != nil {
 			// The resource does not have to be tagged when digest is specified
@@ -842,7 +842,7 @@ func (c *Client) ValidateReference(ref, version string, u *url.URL) (*url.URL, e
 		}
 	}
 
-	u.Path = fmt.Sprintf("%s/%s:%s", registryReference.Registry, registryReference.Repository, tag)
+	u.Path = fmt.Sprintf("%s:%s", registryReference.Repository, tag)
 
 	return u, err
 }
