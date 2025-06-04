@@ -330,7 +330,10 @@ func (c *Client) Login(host string, options ...LoginOption) error {
 	if err := c.credentialsStore.Put(ctx, key, cred); err != nil {
 		return err
 	}
-
+	err = credentials.Login(ctx, c.credentialsStore, reg, cred)
+	if err != nil {
+		return err
+	}
 	fmt.Fprintln(c.out, "Login Succeeded")
 	return nil
 }
