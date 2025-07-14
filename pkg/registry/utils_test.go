@@ -177,8 +177,8 @@ func teardown(suite *TestSuite) {
 	lock.Lock()
 	defer lock.Unlock()
 	if suite.srv != nil {
+		_ = suite.srv.Close()
 		mockdns.UnpatchNet(net.DefaultResolver)
-		suite.srv.Close()
 	}
 }
 
