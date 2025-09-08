@@ -237,12 +237,12 @@ func TestGenerateOCICreatedAnnotations(t *testing.T) {
 	nowTime := helmtime.Now()
 	nowTimeString := nowTime.Format(time.RFC3339)
 
-	chart := &chart.Metadata{
+	testChart := &chart.Metadata{
 		Name:    "oci",
 		Version: "0.0.1",
 	}
 
-	result := generateOCIAnnotations(chart, nowTimeString)
+	result := generateOCIAnnotations(testChart, nowTimeString)
 
 	// Check that created annotation exists
 	if _, ok := result[ocispec.AnnotationCreated]; !ok {
@@ -255,7 +255,7 @@ func TestGenerateOCICreatedAnnotations(t *testing.T) {
 	}
 
 	// Verify default creation time set
-	result = generateOCIAnnotations(chart, "")
+	result = generateOCIAnnotations(testChart, "")
 
 	// Check that created annotation exists
 	if _, ok := result[ocispec.AnnotationCreated]; !ok {
