@@ -23,8 +23,8 @@ import (
 	"testing"
 
 	"helm.sh/helm/v4/pkg/action"
-	chart "helm.sh/helm/v4/pkg/chart/v2"
 	"helm.sh/helm/v4/pkg/chart/common"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	kubefake "helm.sh/helm/v4/pkg/kube/fake"
 	release "helm.sh/helm/v4/pkg/release/v1"
 )
@@ -41,7 +41,7 @@ func TestReleaseTestingFileCompletion(t *testing.T) {
 func TestReleaseTestNotesHandling(t *testing.T) {
 	// Test that ensures notes behavior is correct for test command
 	// This is a simpler test that focuses on the core functionality
-	
+
 	rel := &release.Release{
 		Name:      "test-release",
 		Namespace: "default",
@@ -65,7 +65,7 @@ func TestReleaseTestNotesHandling(t *testing.T) {
 
 	// Test the newReleaseTestCmd function directly
 	var buf1, buf2, buf3 bytes.Buffer
-	
+
 	// Test 1: Default behavior (should hide notes)
 	cmd1 := newReleaseTestCmd(actionConfig, &buf1)
 	cmd1.SetArgs([]string{"test-release"})
