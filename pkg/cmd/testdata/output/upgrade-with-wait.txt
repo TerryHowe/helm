@@ -1,3 +1,4 @@
+Waiting for pods, persistent volume claims, services, and minimum number of Pods of a Deployment, StatefulSet, or ReplicaSet to be in a ready state. Will wait for as long as --timeout (default 5m0s)
 Release "crazy-bunny" has been upgraded. Happy Helming!
 NAME: crazy-bunny
 LAST DEPLOYED: Fri Sep  2 22:04:05 1977

@@ -40,6 +40,7 @@ import (
 	"helm.sh/helm/v4/pkg/cmd/require"
 	"helm.sh/helm/v4/pkg/downloader"
 	"helm.sh/helm/v4/pkg/getter"
+	"helm.sh/helm/v4/pkg/kube"
 	release "helm.sh/helm/v4/pkg/release/v1"
 )
 
@@ -330,6 +331,11 @@ func runInstall(args []string, client *action.Install, valueOpts *values.Options
 		fmt.Fprintf(out, "Release %s has been cancelled.\n", args[0])
 		cancel()
 	}()
+
+	// Show waiting message if wait is enabled and not in client-only mode
+	if client.WaitStrategy != kube.HookOnlyStrategy && !client.ClientOnly {
+		fmt.Fprintf(out, "Waiting for pods, persistent volume claims, services, and minimum number of Pods of a Deployment, StatefulSet, or ReplicaSet to be in a ready state. Will wait for as long as --timeout (default 5m0s)\n")
+	}
 
 	return client.RunWithContext(ctx, chartRequested, vals)
 }
