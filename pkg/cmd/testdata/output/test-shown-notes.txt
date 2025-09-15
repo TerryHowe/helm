@@ -1,0 +1,12 @@
+NAME: funny-bunny
+LAST DEPLOYED: Sat Jan 16 00:00:00 2016
+NAMESPACE: default
+STATUS: deployed
+REVISION: 0
+DESCRIPTION: 
+TEST SUITE:     test-hook
+Last Started:   Mon Sep 15 19:52:44 2025
+Last Completed: Mon Sep 15 19:52:44 2025
+Phase:          Succeeded
+NOTES:
+These are some release notes that should be shown with --show-notes

@@ -43,6 +43,7 @@ func newReleaseTestCmd(cfg *action.Configuration, out io.Writer) *cobra.Command 
 	outfmt := output.Table
 	var outputLogs bool
 	var filter []string
+	var showNotes bool
 
 	cmd := &cobra.Command{
 		Use:   "test [RELEASE]",
@@ -73,11 +74,18 @@ func newReleaseTestCmd(cfg *action.Configuration, out io.Writer) *cobra.Command 
 				return runErr
 			}
 
+			// For helm test, notes are hidden by default unless --show-notes is used
+			hideNotes := !showNotes
+			// If --hide-notes is explicitly set, it overrides --show-notes
+			if client.HideNotes {
+				hideNotes = true
+			}
+
 			if err := outfmt.Write(out, &statusPrinter{
 				release:      rel,
 				debug:        settings.Debug,
 				showMetadata: false,
-				hideNotes:    client.HideNotes,
+				hideNotes:    hideNotes,
 				noColor:      settings.ShouldDisableColor(),
 			}); err != nil {
 				return err
@@ -100,6 +108,7 @@ func newReleaseTestCmd(cfg *action.Configuration, out io.Writer) *cobra.Command 
 	f.BoolVar(&outputLogs, "logs", false, "dump the logs from test pods (this runs after all tests are complete, but before any cleanup)")
 	f.StringSliceVar(&filter, "filter", []string{}, "specify tests by attribute (currently \"name\") using attribute=value syntax or '!attribute=value' to exclude a test (can specify multiple or separate values with commas: name=test1,name=test2)")
 	f.BoolVar(&client.HideNotes, "hide-notes", false, "if set, do not show notes in test output. Does not affect presence in chart metadata")
+	f.BoolVar(&showNotes, "show-notes", false, "if set, show notes in test output. Notes are hidden by default for helm test")
 
 	return cmd
 }
