@@ -66,7 +66,7 @@ func TestUpgradeRelease_Success(t *testing.T) {
 
 	// Detecting previous bug where context termination after successful release
 	// caused release to fail.
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 200)
 	lastRelease, err := upAction.cfg.Releases.Last(rel.Name)
 	req.NoError(err)
 	is.Equal(lastRelease.Info.Status, release.StatusDeployed)
