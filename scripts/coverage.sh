@@ -34,19 +34,19 @@ for arg in "$@"; do
 done
 
 generate_cover_data() {
-  for d in $(go list "$target"); do
+  for d in $(go list "$target" | sort); do
     (
       local output="${coverdir}/${d//\//-}.cover"
-      go test -coverprofile="${output}" -covermode="$covermode" "$d"
+      go test -coverprofile="${output}" -covermode="$covermode" "$d" >/dev/null 2>&1
     )
   done
 
   echo "mode: $covermode" >"$profile"
-  grep -h -v "^mode:" "$coverdir"/*.cover >>"$profile"
+  grep -h -v "^mode:" "$coverdir"/*.cover | sort >>"$profile"
 }
 
 generate_cover_data
-go tool cover -func "${profile}"
+go tool cover -func "${profile}" | sort
 
 if [ "${html}" = "true" ] ; then
     go tool cover -html "${profile}"
